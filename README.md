@@ -82,7 +82,7 @@ CONFIG = {
 
 ## 接口说明
 
-- **请求地址：** `http://localhost:<PORT>/` （`<PORT>` 取决于你在 `ocs.py` 中配置的端口号，默认为 8000）
+- **请求地址：** `http://localhost:<PORT>/` （默认为 8000）
 - **请求方式：** `POST`
 - **Content-Type：** `application/json`
 
