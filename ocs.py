@@ -3,6 +3,7 @@ import http.server
 import urllib.request
 import os
 import re
+import sys
 
 # ================== 用户自定义配置区 ==================
 CONFIG = {
@@ -10,7 +11,7 @@ CONFIG = {
     "DB_DIR": "libraries",       
     
     # 当前正在做的课程名字（不需要加.json后缀）
-    "ACTIVE_COURSE": "智慧树-改革开放与新时代", 
+    "ACTIVE_COURSE": "", # 例："ACTIVE_COURSE": "智慧树-改革开放与新时代"
     
     # 是否开启 AI 搜题功能 
     "ENABLE_AI": True, 
@@ -180,7 +181,42 @@ class UniversalProxyHandler(http.server.BaseHTTPRequestHandler):
             print(f"❌ AI 故障: {e}")
             return "搜索失败"
 
+def select_course():
+    db_dir = CONFIG.get("DB_DIR", "libraries")
+    courses = []
+    if os.path.exists(db_dir):
+        courses = [f[:-5] for f in os.listdir(db_dir) if f.endswith('.json')]
+    
+    if not courses:
+        print("⚠️ 未找到任何本地题库文件，程序将停止运行。")
+        print("请先在 libraries 目录下放置 .json 格式的题库文件！")
+        input("按回车键退出...")
+        sys.exit(1)
+        
+    print(f"📚 本地已有的题库：")
+    for i, c in enumerate(courses, 1):
+        print(f"  [{i}]. {c}")
+    print("-" * 30)
+    
+    while True:
+        user_input = input(f"请输入要加载的【课程序号】: ").strip()
+        
+        if user_input.isdigit():
+            idx = int(user_input)
+            if 1 <= idx <= len(courses):
+                CONFIG["ACTIVE_COURSE"] = courses[idx - 1]
+                break
+                
+        # 输入了非数字，或数字越界
+        print("❌ 输入错误，请输入有效的序号！")
+
 if __name__ == "__main__":
+    if not CONFIG.get("ACTIVE_COURSE"):
+        select_course()
+
+    ACTIVE_DB_PATH = get_db_path()
+    db = load_db()
+
     print(f"🌟 社区共享题库引擎已启动")
     print(f"📍 本地接口: http://localhost:{CONFIG['PORT']}/search")
     print(f"📚 当前加载课程: 【{CONFIG['ACTIVE_COURSE']}】")
