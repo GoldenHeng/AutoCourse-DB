@@ -26,7 +26,7 @@ CONFIG = {
 def get_db_path():
     db_dir = CONFIG.get("DB_DIR", "libraries")
     os.makedirs(db_dir, exist_ok=True)  # 自动创建题库文件夹
-    return os.path.join(db_dir, f"{CONFIG.get('ACTIVE_COURSE', 'default')}.json")
+    return os.path.join(db_dir, f"{CONFIG.get('ACTIVE_COURSE')}.json")
 
 ACTIVE_DB_PATH = get_db_path()
 
@@ -65,18 +65,16 @@ class UniversalProxyHandler(http.server.BaseHTTPRequestHandler):
         
         current_letter = None
         for line in raw_lines:
-            # 匹配 'A. 苹果' 或单独一行的 'A.'
             m = re.match(r'^([A-Z])[\.、\s]+(.*)$', line)
             if m:
                 current_letter = m.group(1)
                 text = m.group(2).strip()
                 opts_dict[current_letter] = text
             else:
-                # 说明这一行是具体文字。它被换行了，那就接在刚才的字母屁股后面
                 if current_letter is not None:
                     opts_dict[current_letter] = (opts_dict.get(current_letter, "") + " " + line).strip()
         
-        # 构建文本到字母的反向映射，并过滤掉空值
+        # 构建文本到字母的反向映射
         reverse_opts = {v: k for k, v in opts_dict.items() if v}
         
         # 归一化 Key：提取文本排序后拼接，不管页面里是 A苹果 还是 B苹果，生成的 Key 都一样
@@ -94,10 +92,9 @@ class UniversalProxyHandler(http.server.BaseHTTPRequestHandler):
         db_hit_value = db.get(storage_key)
             
         if db_hit_value:
-            print(f"✅ 命中题库: {title[:15]}... -> {db_hit_value}")
+            print(f"✅ 命中题库: {title[:15]}{'...' if len(title) > 15 else ''} -> {db_hit_value}")
             
             if q_type == "judgement":
-                # 判断题不需要复杂的选项逆向映射，直接返回库里的"对"或"错"或"A/B"，以防把正确文字错误映射掉
                 answer = str(db_hit_value)
             else:
                 # 题库里存的可能是内容(比如"苹果")，也可能是字母(比如"A")
@@ -132,13 +129,13 @@ class UniversalProxyHandler(http.server.BaseHTTPRequestHandler):
                     db[storage_key] = final_store_val
                     save_db()
                     answer = ai_answer
-                    print(f"💾 已录入新题库！{title[:15]}... -> {final_store_val.replace(chr(10), ' ')}")
+                    print(f"💾 已录入题库！{title[:15]}{'...' if len(title) > 15 else ''} -> {final_store_val.replace(chr(10), ' ')}")
                 else:
-                    print(f"⚠️ 解析选项内容失败，文本为空，放弃写入: {ai_answer}")
+                    print(f"⚠️ 解析选项内容失败，文本为空: {ai_answer}")
             else:
-                print(f"⚠️ AI 请求失败或未返回有效选项，放弃写入")
+                print(f"⚠️ AI 请求失败或未返回有效选项")
         else:
-            print(f"❓ 库中无记录且未开启 AI")
+            print(f"❓ 库中无记录且未开启 AI，未找到答案")
 
         self.send_response(200)
         self.send_header('Content-Type', 'application/json')
@@ -147,7 +144,14 @@ class UniversalProxyHandler(http.server.BaseHTTPRequestHandler):
         self.wfile.write(json.dumps({"answer": answer}).encode('utf-8'))
 
     def ask_ai(self, title, options, q_type):
-        prompt = f"【{q_type}】\n题目：{title}\n选项：{options}"
+        type_map = {
+                    "single": "单选题",
+                    "multiple": "多选题",
+                    "judgement": "判断题",
+                    "completion": "填空题"
+                }
+        q_type_cn = type_map.get(str(q_type),"问题")
+        prompt = f"【{q_type_cn}】\n题目：{title}\n选项：{options}"
         
         payload = {
             "model": CONFIG["AI_MODEL"],
