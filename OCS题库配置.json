@@ -1,0 +1,15 @@
+[
+    {
+        "name": "AutoCourse-DB",
+        "url": "http://localhost:8000/search",
+        "method": "post",
+        "type": "GM_xmlhttpRequest",
+        "contentType": "json",
+        "data": {
+            "title": "${title}",
+            "options": "${options}",
+            "type": "${type}"
+        },
+        "handler": "return (res) => [undefined, res.answer]"
+    }
+]
